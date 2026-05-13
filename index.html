@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FastRide - Такси</title>
+    
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<div id="driversOnMap" style="display: none;">Загрузка водителей...</div>
+<body>
+    <div class="controls">
+        <div class="input-wrapper">
+            <img src="img/from.svg" class="input-icon" alt="icon">
+            <input type="text" id="fromInput" placeholder="Откуда">
+        </div>
+        <div class="input-wrapper">
+            <img src="img/to.svg" class="input-icon" alt="icon">
+            <input type="text" id="toInput" placeholder="Куда">
+        </div>
+        <button onclick="findRoute()">Построить маршрут</button>
+    </div>
+    
+    <div id="map"></div>
+    
+    <div class="info-tariffs" id="infoTar">
+        <label class="choice-label">Выберите тариф</label>
+        <div class="tariffs">
+            <button class="tariffs-btn" id="Fasten-tariff">
+                <img src="img/car-tariff.svg" class="tariffs-btn-img" alt="car">
+                <span id="Fasten-duration-waiting">0 мин</span>
+                <label>Fasten</label>
+                <div class="tariffs-price">
+                    <img src="img/lightning.svg" alt="lightning">
+                    <span id="Fasten-price">0 ₽</span>
+                </div>
+                <span class="why-price"></span>
+            </button>
+            <button class="tariffs-btn" id="Comfort-tariff">
+                <img src="img/car-tariff.svg" class="tariffs-btn-img" alt="car">
+                <span id="Comfort-duration-waiting">0 мин</span>
+                <label>Comfort</label>
+                <div class="tariffs-price">
+                    <img src="img/lightning.svg" alt="lightning">
+                    <span id="Comfort-price">0 ₽</span>
+                </div>
+                <span class="why-price"></span>
+            </button>
+            <button class="tariffs-btn" id="Comfortplus-tariff">
+                <img src="img/car-tariff.svg" class="tariffs-btn-img" alt="car">
+                <span id="Comfortplus-duration-waiting">0 мин</span>
+                <label>Comfort+</label>
+                <div class="tariffs-price">
+                    <img src="img/lightning.svg" alt="lightning">
+                    <span id="Comfortplus-price">0 ₽</span>
+                </div>
+                <span class="why-price"></span>
+            </button>
+            <button class="tariffs-btn" id="Business-tariff">
+                <img src="img/car-tariff.svg" class="tariffs-btn-img" alt="car">
+                <span id="Business-duration-waiting">0 мин</span>
+                <label>Business</label>
+                <div class="tariffs-price">
+                    <img src="img/lightning.svg" alt="lightning">
+                    <span id="Business-price">0 ₽</span>
+                </div>
+                <span class="why-price"></span>
+            </button>
+        </div>
+        <button id="btn-zakaz">Заказать</button>
+        <div class="drivers-panel" id="driversPanel" style="display: none;">
+            <div class="drivers-header">
+                <h3>Ближайшие водители</h3>
+                <button class="close-drivers" onclick="closeDriversPanel()">×</button>
+            </div>
+            <div class="drivers-list" id="driversList">
+            </div>
+        </div>
+        <div class="info-card" id="infoCard">
+            <div class="price" id="price">0 ₽</div>
+            <div class="info-row">
+                <span>Расстояние:</span>
+                <span id="distance">0 км</span>
+            </div>
+            <div class="info-row">
+                <span>Время:</span>
+                <span id="duration">0 мин</span>
+            </div>
+            <div class="info-row">
+                <span>Погода:</span>
+                <span id="weather">--</span>
+            </div>
+            <div class="info-row">
+                <span>Пробки:</span>
+                <span id="traffic">--</span>
+            </div>
+            <div class="info-row" id="calculation-detail" style="display: none;">
+                <span>Детали расчета:</span>
+                <span id="calculation">--</span>
+            </div>
+            <div class="info-row" id="tariffExplanation" style="display: none;">
+                <span>Тариф:</span>
+                <span id="tariffName">--</span>
+            </div>
+            <div class="info-row" id="priceExplanation" style="display: none;">
+                <span>Расчет:</span>
+                <span id="calculation-text">--</span>
+            </div>
+        </div>
+    </div>
+    
+    <button class="location-btn" onclick="getMyLocation()">
+        <img src="img/location.svg" alt="location">
+    </button>
+    <div class="loading" id="loading">
+        <img src="img/loading.svg" alt="loading">
+        <span>Загрузка...</span>
+    </div>
+    <script src="script/main.js"></script>
+</body>
+</html>
