@@ -13,15 +13,21 @@
 <body>
     <div class="controls">
         <div class="input-wrapper">
-            <img src="img/from.svg" class="input-icon" alt="icon">
+            <img src="img/from.svg" class="icon" alt="icon">
             <input type="text" id="fromInput" placeholder="Откуда">
         </div>
         <div class="input-wrapper">
-            <img src="img/to.svg" class="input-icon" alt="icon">
+            <img src="img/to.svg" class="icon" alt="icon">
             <input type="text" id="toInput" placeholder="Куда">
         </div>
         <button onclick="findRoute()">Построить маршрут</button>
     </div>
+
+    <button class="weather-icon" id="weather-icon">
+    </button>
+
+    <button class="probki-icon" id="probki-icon">
+    </button>
     
     <div id="map"></div>
     
@@ -70,14 +76,6 @@
             </button>
         </div>
         <button id="btn-zakaz">Заказать</button>
-        <div class="drivers-panel" id="driversPanel" style="display: none;">
-            <div class="drivers-header">
-                <h3>Ближайшие водители</h3>
-                <button class="close-drivers" onclick="closeDriversPanel()">×</button>
-            </div>
-            <div class="drivers-list" id="driversList">
-            </div>
-        </div>
         <div class="info-card" id="infoCard">
             <div class="price" id="price">0 ₽</div>
             <div class="info-row">
@@ -110,9 +108,44 @@
             </div>
         </div>
     </div>
+
+    <section class="order-window">
+        <div class="order">
+            <div class="driver">
+                <img src="img/driver.svg" alt="driver">
+                <label id="driverName">бРАТАН</label>
+            </div>
+            <div class="fromtoOrder">
+                <img src="img/from.svg" alt="from">
+                <label id="fromOrder">Откуда</label>
+            </div>
+            <div class="fromtoOrder">
+                <img src="img/to.svg" alt="to">
+                <label id="toOrder">Куда</label>
+            </div>
+            <div class="priceItogo">
+                <p>Итого к оплате</p>
+                <div class="price" id="pricee">0 ₽</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="profile-window" id="profileWindow">
+        <div class="profile">
+            <div class="client">
+                <img src="img/profile.svg" alt="profile">
+                <label id="clientEmail"></label>
+            </div>
+            <div class="profile-orders">
+                <h4>История заказов</h4>
+                <div id="profileOrdersList" class="orders-list"></div>
+            </div>
+            <button class="logout" onclick="logout()">Выйти из аккаунта</button>
+        </div>
+    </section>
     
-    <button class="location-btn" onclick="getMyLocation()">
-        <img src="img/location.svg" alt="location">
+    <button class="location-btn" id="profileBtn">
+        <img src="img/profile.svg" alt="profile">
     </button>
     <div class="loading" id="loading">
         <img src="img/loading.svg" alt="loading">

@@ -1,7 +1,16 @@
 document.addEventListener('DOMContentLoaded', function() {
     initMap();
+    loadDefaultWeatherAndTraffic();
     document.getElementById('infoTar').style.display = 'none';
     document.getElementById('infoCard').style.display = 'none';
+
+    const userId = localStorage.getItem('userId');
+    const userEmail = localStorage.getItem('userEmail');
+    
+    if (!userId || !userEmail) {
+        window.location.href = 'login.html';
+    }
+
 });
 
 let map;
@@ -17,6 +26,39 @@ function initMap() {
         attribution: '© OpenStreetMap contributors',
         maxZoom: 19
     }).addTo(map);
+}
+
+async function loadDefaultWeatherAndTraffic() {
+    const defaultLat = 55.164441; 
+    const defaultLon = 61.436843;
+    
+    try {
+        const response = await fetch('/api/get_weather_traffic', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                lat: defaultLat,
+                lon: defaultLon
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data) {
+            const weatherIcon = document.getElementById('weather-icon');
+            const probkiIcon = document.getElementById('probki-icon');
+            
+            if (weatherIcon) {
+                weatherIcon.innerHTML = data.weather;
+            }
+            
+            if (probkiIcon) {
+                probkiIcon.innerHTML = data.traffic;
+            }
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки погоды:', error);
+    }
 }
 
 async function findRoute() {
@@ -56,7 +98,6 @@ async function findRoute() {
         
         document.getElementById('infoTar').style.display = 'block';
         
-        // Обновляем цены в кнопках
         updateAllTariffPrices();
         updateTariffsWaitingTime(data.duration);
         
@@ -81,8 +122,8 @@ function updateAllTariffPrices() {
                 distance: currentRouteData.distance,
                 duration: currentRouteData.duration,
                 tariff: tariff,
-                weather_mult: currentRouteData.weather_mult,
-                traffic_mult: currentRouteData.traffic_mult
+                weather_mult: currentRouteData.weather_mult || 1.0,
+                traffic_mult: currentRouteData.traffic_mult || 1.0
             })
         })
         .then(response => response.json())
@@ -138,51 +179,100 @@ async function orderRide() {
     
     const tariffName = activeTariff.querySelector('label').textContent;
     
-    const driverResponse = await fetch('/api/get_nearest_driver', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            pickup_lat: currentRouteData.from_lat,
-            pickup_lon: currentRouteData.from_lon,
-            tariff: tariffName
-        })
-    });
+    const btn = document.getElementById('btn-zakaz');
+    const originalText = btn.textContent;
+    btn.textContent = 'Создаем заказ...';
+    btn.disabled = true;
+    btn.style.opacity = '0.7';
     
-    const driverData = await driverResponse.json();
+    let vibrateCount = 0;
+    const vibrateInterval = setInterval(() => {
+        if (vibrateCount < 6) {
+            btn.style.transform = vibrateCount % 2 === 0 ? 'translateX(3px)' : 'translateX(-3px)';
+            vibrateCount++;
+        } else {
+            clearInterval(vibrateInterval);
+            btn.style.transform = 'translateX(0)';
+        }
+    }, 80);
     
-    const response = await fetch('/api/calculate_final_price', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            distance: currentRouteData.distance,
-            duration: currentRouteData.duration,
-            tariff: tariffName,
-            weather_mult: currentRouteData.weather_mult,
-            traffic_mult: currentRouteData.traffic_mult
-        })
-    });
-    
-    const data = await response.json();
-    
-    document.getElementById('distance').innerHTML = currentRouteData.distance.toFixed(1) + ' км';
-    document.getElementById('duration').innerHTML = Math.round(currentRouteData.duration) + ' мин';
-    document.getElementById('price').innerHTML = data.price + ' ₽';
-    document.getElementById('weather').innerHTML = currentRouteData.weather;
-    document.getElementById('traffic').innerHTML = currentRouteData.traffic;
-    document.getElementById('calculation').innerHTML = data.calculation;
-    
-    const driver = driverData.driver;
-    let driverRow = document.getElementById('driver-row');
-    if (!driverRow) {
-        driverRow = document.createElement('div');
-        driverRow.id = 'driver-row';
-        driverRow.className = 'info-row';
-        document.getElementById('infoCard').appendChild(driverRow);
+    try {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        const driverResponse = await fetch('/api/get_nearest_driver', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                pickup_lat: currentRouteData.from_lat,
+                pickup_lon: currentRouteData.from_lon,
+                tariff: tariffName
+            })
+        });
+        
+        const driverData = await driverResponse.json();
+        
+        if (driverData.error) {
+            alert(driverData.error);
+            btn.textContent = originalText;
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            clearInterval(vibrateInterval);
+            return;
+        }
+        
+        const response = await fetch('/api/calculate_final_price', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                distance: currentRouteData.distance,
+                duration: currentRouteData.duration,
+                tariff: tariffName,
+                weather_mult: currentRouteData.weather_mult || 1.0,
+                traffic_mult: currentRouteData.traffic_mult || 1.0
+            })
+        });
+        
+        const data = await response.json();
+        
+        const driver = driverData.driver;
+        
+        document.getElementById('driverName').innerHTML = `${driver.name} ⭐ ${driver.rating}`;
+        document.getElementById('fromOrder').innerHTML = document.getElementById('fromInput').value;
+        document.getElementById('toOrder').innerHTML = document.getElementById('toInput').value;
+        document.getElementById('pricee').innerHTML = data.price + ' ₽';
+
+        await fetch('/api/save_ride', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                from_address: document.getElementById('fromInput').value,
+                to_address: document.getElementById('toInput').value,
+                distance: currentRouteData.distance,
+                duration: currentRouteData.duration,
+                tariff: tariffName,
+                price: data.price,
+                weather: currentRouteData.weather,
+                traffic: currentRouteData.traffic,
+                driver_name: driver.name,
+                car_model: driver.car_model,
+                driver_rating: driver.rating,
+                waiting_time: driver.waiting_time
+            })
+        });
+        
+        document.querySelector('.order-window').style.display = 'flex';
+        document.getElementById('infoTar').style.display = 'none';
+        
+    } catch (error) {
+        console.error('Ошибка:', error);
+        alert('Ошибка при создании заказа');
+    } finally {
+        clearInterval(vibrateInterval);
+        btn.style.transform = 'translateX(0)';
+        btn.textContent = originalText;
+        btn.disabled = false;
+        btn.style.opacity = '1';
     }
-    driverRow.innerHTML = `<span>Водитель:</span><span>${driver.name} (${driver.car_model})<br><small>${driver.license_plate} ⭐ ${driver.rating}</small><br><small>🚗 Подача: ${driver.waiting_time} мин</small></span>`;
-    
-    document.getElementById('infoTar').style.display = 'none';
-    document.getElementById('infoCard').style.display = 'block';
 }
 
 function drawRoute(fromCoord, toCoord) {
@@ -257,12 +347,10 @@ function findNearestCar(lat, lon) {
 }
 
 function updateWaitingTimeFromNearestCar(pickupLat, pickupLon, tariffName) {
-    console.log('Ищем ближайшую машинку...');
     const nearest = findNearestCar(pickupLat, pickupLon);
     
     if (nearest) {
         const minutes = Math.ceil(nearest.distance / 500);
-        console.log(`Ближайшая машинка на расстоянии ${Math.round(nearest.distance)}м, подача: ${minutes} мин`);
         
         const activeBtn = document.querySelector('.tariffs-btn.active');
         if (activeBtn) {
@@ -270,13 +358,8 @@ function updateWaitingTimeFromNearestCar(pickupLat, pickupLon, tariffName) {
             const waitingSpan = document.getElementById(`${activeTariffName}-duration-waiting`);
             if (waitingSpan) {
                 waitingSpan.textContent = minutes + ' мин';
-                console.log(`Обновлено время для ${activeTariffName}: ${minutes} мин`);
-            } else {
-                console.log(`Элемент ${activeTariffName}-duration-waiting не найден`);
             }
         }
-    } else {
-        console.log('Машинки не найдены');
     }
 }
 
@@ -324,6 +407,69 @@ function showLoading(show) {
     if (loadingEl) loadingEl.style.display = show ? 'block' : 'none';
 }
 
+document.querySelector('.location-btn').onclick = () => {
+    showProfile();
+};
+
+async function showProfile() {
+    const userEmail = localStorage.getItem('userEmail');
+    document.getElementById('clientEmail').innerHTML = userEmail || 'Пользователь';
+    
+    try {
+        const response = await fetch('/api/get_history', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+        });
+        const data = await response.json();
+        
+        const ordersList = document.getElementById('profileOrdersList');
+        
+        if (!data.history || data.history.length === 0) {
+            ordersList.innerHTML = '<div style="text-align: center; color: #999;">У вас пока нет заказов</div>';
+        } else {
+            ordersList.innerHTML = '';
+            data.history.slice().reverse().forEach(ride => {
+                const orderDiv = document.createElement('div');
+                orderDiv.className = 'order-item';
+                orderDiv.innerHTML = `
+                    <div class="order-header">
+                        <span class="order-tariff">${ride.tariff}</span>
+                        <span class="order-price">${ride.price} ₽</span>
+                    </div>
+                    <div class="order-route">
+                        Откуда: ${ride.from_address}<br>
+                        Куда: ${ride.to_address}
+                    </div>
+                    <div class="order-date">
+                        🕐 ${ride.created_at}
+                    </div>
+                `;
+                ordersList.appendChild(orderDiv);
+            });
+        }
+        
+        document.getElementById('profileWindow').style.display = 'flex';
+    } catch (error) {
+        console.error('Ошибка:', error);
+        document.getElementById('profileOrdersList').innerHTML = '<div style="text-align: center; color: red;">Ошибка загрузки</div>';
+        document.getElementById('profileWindow').style.display = 'flex';
+    }
+}
+
+
+document.getElementById('profileWindow').addEventListener('click', function(e) {
+    if (e.target === this) {
+        this.style.display = 'none';
+    }
+});
+
+document.querySelector('.order-window').addEventListener('click', function(e) {
+    if (e.target === this) {
+        this.style.display = 'none';
+    }
+});
+
 document.querySelectorAll('.tariffs-btn').forEach(btn => {
     const whySpan = btn.querySelector('.why-price');
     if (whySpan && !whySpan.textContent) {
@@ -345,10 +491,6 @@ document.querySelectorAll('.tariffs-btn').forEach(btn => {
         if (currentRouteData && currentRouteData.from_lat) {
             const tariffName = btn.querySelector('label')?.textContent || 'Fasten';
             addRandomCarsNearPoint(currentRouteData.from_lat, currentRouteData.from_lon, tariffName);
-
-            setTimeout(() => {
-                updateWaitingTimeFromNearestCar(currentRouteData.from_lat, currentRouteData.from_lon, tariffName);
-            }, 100);
         }
     };
     
@@ -369,8 +511,8 @@ document.querySelectorAll('.tariffs-btn').forEach(btn => {
                     distance: currentRouteData.distance,
                     duration: currentRouteData.duration,
                     tariff: tariffName,
-                    weather_mult: currentRouteData.weather_mult,
-                    traffic_mult: currentRouteData.traffic_mult
+                    weather_mult: currentRouteData.weather_mult || 1.0,
+                    traffic_mult: currentRouteData.traffic_mult || 1.0
                 })
             })
             .then(response => response.json())
@@ -391,7 +533,6 @@ document.querySelectorAll('.tariffs-btn').forEach(btn => {
                 .then(infoData => {
                     document.getElementById('tariffName').innerHTML = infoData.tariff_info;
                     document.getElementById('tariffExplanation').style.display = 'flex';
-                    document.getElementById('priceExplanation').style.display = 'flex';
                     document.getElementById('calculation-detail').style.display = 'flex';
                     document.getElementById('infoCard').style.display = 'block';
                 });
@@ -406,7 +547,6 @@ document.querySelectorAll('.tariffs-btn').forEach(btn => {
 
 function closeTariffInfo() {
     document.getElementById('tariffExplanation').style.display = 'none';
-    document.getElementById('priceExplanation').style.display = 'none';
     document.getElementById('infoCard').style.display = 'none';
 }
 
@@ -423,5 +563,11 @@ document.addEventListener('click', function(event) {
         }
     }
 });
+
+function logout() {
+        localStorage.removeItem('userId');
+        localStorage.removeItem('userEmail');
+        window.location.href = 'login.html';
+    }
 
 document.getElementById('btn-zakaz').onclick = orderRide;

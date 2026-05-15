@@ -14,7 +14,26 @@ class FastRideHandler(SimpleHTTPRequestHandler):
         length = int(self.headers['Content-Length'])
         data = json.loads(self.rfile.read(length))
         
-        if self.path == '/api/calculate_route':
+        if self.path == '/api/register':
+            email = data.get('email')
+            password = data.get('password')
+            
+            if db.register_user(email, password):
+                result = {'success': True, 'message': 'Регистрация успешна'}
+            else:
+                result = {'success': False, 'message': 'Пользователь уже существует'}
+
+        elif self.path == '/api/login':
+            email = data.get('email')
+            password = data.get('password')
+            
+            user = db.login_user(email, password)
+            if user:
+                result = {'success': True, 'user': user}
+            else:
+                result = {'success': False, 'message': 'Неверная почта или пароль'}
+
+        elif self.path == '/api/calculate_route':
             try:
                 from_coord = TaxiCalculator.get_coordinates(data['from_address'])
                 to_coord = TaxiCalculator.get_coordinates(data['to_address'])
@@ -36,6 +55,19 @@ class FastRideHandler(SimpleHTTPRequestHandler):
             except Exception as e:
                 result = {'error': str(e)}
         
+        elif self.path == '/api/get_weather_traffic':
+            weather, weather_mult = TaxiCalculator.get_weather_factor()
+            traffic, traffic_mult = TaxiCalculator.get_traffic_factor()
+            
+            result = {
+                'weather': weather[0],
+                'weather_text': weather,
+                'weather_mult': weather_mult,
+                'traffic': traffic[0],
+                'traffic_text': traffic,
+                'traffic_mult': traffic_mult
+            }
+
         elif self.path == '/api/get_tariff_prices':
             result = {'prices': TaxiCalculator.get_tariff_prices(data['distance'], data['duration'])}
         
@@ -60,12 +92,27 @@ class FastRideHandler(SimpleHTTPRequestHandler):
                 'price': calc['price'],
                 'calculation': calc['calculation']
             }
-        
-        
 
         elif self.path == '/api/get_history':
             history = db.get_history()
             result = {'history': history}
+
+        elif self.path == '/api/save_ride':
+            db.save_ride(
+                data.get('from_address', ''),
+                data.get('to_address', ''),
+                data['distance'],
+                data['duration'],
+                data['tariff'],
+                data['price'],
+                data.get('weather', ''),
+                data.get('traffic', ''),
+                data.get('driver_name', ''),
+                data.get('car_model', ''),
+                data.get('driver_rating', 0),
+                data.get('waiting_time', 0)
+            )
+            result = {'success': True}
         
         elif self.path == '/api/get_rides_by_tariff':
             result = {'rides': db.get_rides_by_tariff(data['tariff'])}
@@ -92,7 +139,6 @@ class FastRideHandler(SimpleHTTPRequestHandler):
             lon = data.get('lon')
             db.update_driver_location(driver_id, lat, lon)
             result = {'success': True}
-        
 
         else:
             self.send_response(404)

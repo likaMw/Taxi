@@ -84,7 +84,7 @@ class TaxiCalculator:
     
     @staticmethod
     def get_traffic_factor():
-        traffics = [('🟢 Свободно', 1.0), ('🟡 Средне', 1.15), ('🔴 Плотно', 1.3), ('🔴🔴 Стоим', 1.5)]
+        traffics = [('🟢 Свободно', 1.0), ('🟡 Средне', 1.15), ('🔴 Плотно', 1.3), ('🔴 Стоим', 1.5)]
         return random.choice(traffics)
     
     @staticmethod

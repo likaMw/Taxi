@@ -11,6 +11,13 @@ class Database:
         conn = sqlite3.connect(self.db_name)
         c = conn.cursor()
         
+        c.execute('''CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT UNIQUE,
+            password TEXT,
+            created_at TEXT
+        )''')
+
         c.execute('''CREATE TABLE IF NOT EXISTS rides (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             from_address TEXT,
@@ -49,6 +56,37 @@ class Database:
         
         conn.close()
     
+
+    def register_user(self, email, password):
+        import hashlib
+        hashed = hashlib.sha256(password.encode()).hexdigest()
+        
+        try:
+            conn = sqlite3.connect(self.db_name)
+            c = conn.cursor()
+            c.execute('INSERT INTO users (email, password, created_at) VALUES (?, ?, ?)',
+                    (email, hashed, datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+            conn.commit()
+            conn.close()
+            return True
+        except sqlite3.IntegrityError:
+            return False
+
+    def login_user(self, email, password):
+        import hashlib
+        hashed = hashlib.sha256(password.encode()).hexdigest()
+        
+        conn = sqlite3.connect(self.db_name)
+        c = conn.cursor()
+        c.execute('SELECT id, email FROM users WHERE email = ? AND password = ?', (email, hashed))
+        user = c.fetchone()
+        conn.close()
+        
+        if user:
+            return {'id': user[0], 'email': user[1]}
+        return None
+
+
     def _seed_drivers(self):
         driver_names = ['Александр Соколов', 'Дмитрий Кузнецов', 'Максим Попов', 
                        'Сергей Васильев', 'Андрей Петров', 'Владимир Смирнов',
@@ -170,3 +208,30 @@ class Database:
                    datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
         conn.commit()
         conn.close()
+
+    def get_history(self, limit=50):
+        conn = sqlite3.connect(self.db_name)
+        c = conn.cursor()
+        c.execute('''SELECT * FROM rides ORDER BY created_at DESC LIMIT ?''', (limit,))
+        rows = c.fetchall()
+        conn.close()
+        
+        history = []
+        for row in rows:
+            history.append({
+                'id': row[0],
+                'from_address': row[1],
+                'to_address': row[2],
+                'distance': row[3],
+                'duration': row[4],
+                'tariff': row[5],
+                'price': row[6],
+                'weather': row[7],
+                'traffic': row[8],
+                'driver_name': row[9],
+                'car_model': row[10],
+                'driver_rating': row[11],
+                'waiting_time': row[12],
+                'created_at': row[13]
+            })
+        return history
